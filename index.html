@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Number Crossing</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#171b26">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root,html[data-theme="dark"]{
+  --bg:#171b26; --panel:#202636; --ink:#eef0f5; --muted:#8f99ad; --cell:#f2c078; --cell-ink:#1b1608;
+  --blank:#6f6558; --blank-ink:#fff; --tile:#e9f6ee; --tile-ink:#12824a; --accent:#5aa2ff;
+  --good:#3f9d68; --bad:#d9523f; --btn:#2b3347; --line:#171b26;
+}
+html[data-theme="light"]{
+  --bg:#eef0f4; --panel:#ffffff; --ink:#1a2030; --muted:#687286; --cell:#f2c078; --cell-ink:#1b1608;
+  --blank:#8d8272; --blank-ink:#fff; --tile:#ffffff; --tile-ink:#12824a; --accent:#1f6fe0;
+  --good:#3f9d68; --bad:#d9523f; --btn:#dde1ea; --line:#eef0f4;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  touch-action:manipulation;user-select:none;-webkit-user-select:none;overscroll-behavior:none}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;touch-action:manipulation;padding:0}
+#app{max-width:520px;margin:0 auto;height:100vh;height:100dvh;display:flex;flex-direction:column;padding:6px}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 2px 6px;flex:none}
+.pill{background:var(--btn);border-radius:999px;padding:8px 14px;font-weight:700;font-size:15px}
+.stat{font-size:14px;color:var(--muted);font-weight:600}
+.stat b{color:var(--ink);font-variant-numeric:tabular-nums}
+#boardWrap{flex:1 1 auto;min-height:0;display:flex;justify-content:center;align-items:center;background:var(--panel);border-radius:12px}
+#board{display:grid}
+.cell{width:var(--cs);height:var(--cs);display:flex;align-items:center;justify-content:center;border:1px solid var(--line);
+  background:var(--cell);color:var(--cell-ink);font-weight:700;font-size:calc(var(--cs)*.56);font-variant-numeric:tabular-nums;line-height:1;overflow:hidden}
+.cell.long{font-size:calc(var(--cs)*.42);letter-spacing:-.5px}
+.cell.op{font-size:calc(var(--cs)*.6)}
+.cell.blank{background:var(--blank);color:var(--blank-ink)}
+.cell.blank.locked{color:#b9f5d2}
+.cell.blank.good{background:var(--good)}
+.cell.blank.bad{background:var(--bad)}
+.cell.blank.target{box-shadow:inset 0 0 0 2px var(--accent)}
+.cell.blank.sel{box-shadow:inset 0 0 0 3px var(--accent);background:color-mix(in srgb,var(--blank) 70%,var(--accent))}
+.cell.blank.sel.good{background:var(--good)}.cell.blank.sel.bad{background:var(--bad)}
+#tray{flex:none;display:grid;gap:6px;justify-content:center;padding:8px 0 6px;margin-top:6px;background:var(--panel);border-radius:12px}
+.tile{width:var(--ts);height:var(--ts);border-radius:4px;background:var(--tile);color:var(--tile-ink);
+  font-size:calc(var(--ts)*.58);font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+.tile.long{font-size:calc(var(--ts)*.44);letter-spacing:-.5px}
+.tile.used{visibility:hidden}
+.tile.sel{background:var(--accent);color:#fff}
+.tools{flex:none;display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-top:6px}
+.tools button{background:var(--btn);border-radius:10px;padding:11px 2px;font-weight:700;font-size:14px}
+.tools button:active,.pill:active,.tile:active{transform:scale(.95)}
+.tools button[disabled]{opacity:.4}
+#toast{position:fixed;left:50%;top:56px;transform:translateX(-50%);background:var(--ink);color:var(--bg);
+  padding:10px 16px;border-radius:999px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s;white-space:nowrap;z-index:9}
+#toast.on{opacity:1}
+#overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-end;justify-content:center;z-index:5}
+#overlay.on{display:flex}
+#sheet{background:var(--panel);width:100%;max-width:520px;border-radius:20px 20px 0 0;padding:16px 14px 20px;max-height:94vh;overflow:auto}
+#sheet h2{margin:0 0 4px;font-size:20px}
+#sheet p{margin:4px 0 10px;color:var(--muted);font-size:14px;line-height:1.4}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.opt{background:var(--btn);border-radius:14px;padding:12px;text-align:left;font-weight:800;font-size:16px}
+.opt small{display:block;font-weight:600;color:var(--muted);font-size:12px;margin-top:3px}
+.opt.wide{grid-column:1/-1}
+.opt.primary{background:var(--accent);color:#fff}
+.opt.primary small{color:inherit;opacity:.9}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 2px;border-top:1px solid var(--btn);font-weight:600;font-size:15px}
+.row small{color:var(--muted);font-weight:500}
+.row button{background:var(--btn);border-radius:999px;padding:8px 14px;font-weight:700;font-size:14px;min-width:74px;flex:none}
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:4px}
+th,td{text-align:right;padding:6px 4px;border-top:1px solid var(--btn);font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:600;border-top:0}
+.big{display:flex;gap:8px;margin:10px 0 14px}
+.big div{flex:1;background:var(--btn);border-radius:14px;padding:12px 6px;text-align:center;font-size:12px;color:var(--muted);font-weight:600}
+.big b{display:block;font-size:22px;color:var(--ink);font-variant-numeric:tabular-nums}
+.sec{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:700;margin:12px 0 4px}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <button class="pill" id="menuBtn">Easy</button>
+    <span class="stat"><b id="progress"></b></span>
+    <span class="stat">Time <b id="time">0:00</b></span>
+    <span class="stat">Errors <b id="mist">0</b></span>
+  </header>
+  <div id="boardWrap"><div id="board"></div></div>
+  <div id="tray"></div>
+  <div class="tools">
+    <button id="undoBtn">Undo</button>
+    <button id="eraseBtn">Erase</button>
+    <button id="checkBtn">Check</button>
+    <button id="hintBtn">Hint</button>
+    <button id="newBtn">New</button>
+  </div>
+</div>
+<div id="toast"></div>
+<div id="overlay"><div id="sheet"></div></div>
+
+<script>
+/*GEN-START*/
+const DIFFS={
+  easy:{label:'Easy',cols:7,rows:7,eqs:7,min:5,max:20,ops:['+','-'],w:[1,1],long:0,blank:.42,perEq:2,note:'Add and subtract'},
+  medium:{label:'Medium',cols:9,rows:9,eqs:13,min:9,max:30,ops:['+','-','*','/'],w:[2,2,3,3],long:.2,blank:.5,perEq:2,note:'All four operations'},
+  hard:{label:'Hard',cols:11,rows:11,eqs:20,min:14,max:60,ops:['+','-','*','/'],w:[2,2,3,3],long:.25,blank:.58,perEq:2,note:'Bigger grid and numbers'},
+  expert:{label:'Expert',cols:11,rows:13,eqs:26,min:17,max:120,ops:['+','-','*','/'],w:[2,2,3,3],long:.3,blank:.68,perEq:3,note:'Largest grid, few clues'}
+};
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function calc(a,op,b){return op==='+'?a+b:op==='-'?a-b:op==='*'?a*b:a/b}
+function evalChain(v,ops){let x=v[0];for(let i=0;i<ops.length;i++)x=calc(x,ops[i],v[i+1]);return x===v[v.length-1]}
+function solve2(fixed,op,d,rng){
+  const fa=fixed[0],fb=fixed[1],fc=fixed[2],M=d.max,out=[];
+  const ok=(a,b)=>{
+    let c;
+    if(op==='+')c=a+b;
+    else if(op==='-')c=a-b;
+    else if(op==='*'){if(a<2||b<2)return;c=a*b}
+    else{if(b<2||a%b)return;c=a/b;if(c<2)return}
+    if(c<1||c>M)return;
+    if(fc!=null&&c!==fc)return;
+    out.push([a,b,c]);
+  };
+  if(fa==null&&fb==null&&fc==null){
+    for(let i=0;i<80;i++)ok(1+Math.floor(rng()*M),1+Math.floor(rng()*M));
+  }else{
+    for(let a=(fa!=null?fa:1),ae=(fa!=null?fa:M);a<=ae;a++)
+      for(let b=(fb!=null?fb:1),be=(fb!=null?fb:M);b<=be;b++)ok(a,b);
+  }
+  return out.length?out[Math.floor(rng()*out.length)]:null;
+}
+function solve3(fixed,d,rng){
+  const M=d.max,unk=[];
+  for(let i=0;i<4;i++)if(fixed[i]==null)unk.push(i);
+  if(!unk.length)return null;
+  for(let t=0;t<40;t++){
+    const ops=[rng()<.5?'+':'-',rng()<.5?'+':'-'];
+    const coef=[1,ops[0]==='+'?1:-1,ops[1]==='+'?1:-1,-1];
+    const v=fixed.slice(),u=unk[Math.floor(rng()*unk.length)];
+    let sum=0;
+    for(let i=0;i<4;i++){
+      if(i===u)continue;
+      if(v[i]==null)v[i]=1+Math.floor(rng()*Math.max(2,M*.6));
+      sum+=coef[i]*v[i];
+    }
+    const x=-sum/coef[u];
+    if(x<1||x>M)continue;
+    v[u]=x;
+    if(v[0]+coef[1]*v[1]<1)continue;
+    return{vals:v,ops};
+  }
+  return null;
+}
+function weightedOrder(ops,w,rng){
+  const items=ops.map((o,i)=>({o,k:Math.pow(rng(),1/w[i])}));
+  items.sort((x,y)=>y.k-x.k);
+  return items.map(x=>x.o);
+}
+function tryGen(rng,d){
+  const cols=d.cols,rows=d.rows,cells=new Map(),eqs=[];
+  const K=(r,c)=>r*100+c,get=(r,c)=>cells.get(K(r,c));
+  function probe(r,c,dir,len){
+    const dr=dir==='v'?1:0,dc=dir==='h'?1:0;
+    if(r<0||c<0||r+dr*(len-1)>=rows||c+dc*(len-1)>=cols)return null;
+    if(get(r-dr,c-dc)||get(r+dr*len,c+dc*len))return null;
+    const fixed=[];let shared=0;
+    for(let i=0;i<len;i++){
+      const x=get(r+dr*i,c+dc*i);
+      if(i%2===0)fixed.push(x?x.val:null);
+      if(!x)continue;
+      if(i%2===1||x.type!=='num'||x[dir])return null;
+      shared++;
+    }
+    return shared===fixed.length?null:fixed;
+  }
+  function place(r,c,dir,len,fixed){
+    let s=null;
+    if(len===7)s=solve3(fixed,d,rng);
+    else for(const op of weightedOrder(d.ops,d.w,rng)){const v=solve2(fixed,op,d,rng);if(v){s={vals:v,ops:[op]};break}}
+    if(!s)return false;
+    const dr=dir==='v'?1:0,dc=dir==='h'?1:0,keys=[];
+    for(let i=0;i<len;i++){
+      const rr=r+dr*i,cc=c+dc*i,k=K(rr,cc);
+      if(i%2===0){
+        let x=cells.get(k);
+        if(!x){x={r:rr,c:cc,type:'num',val:s.vals[i/2],h:false,v:false};cells.set(k,x)}
+        x[dir]=true;keys.push(x);
+      }else cells.set(k,{r:rr,c:cc,type:'op',ch:i===len-2?'=':s.ops[(i-1)/2]});
+    }
+    eqs.push({cells:keys,ops:s.ops});
+    return true;
+  }
+  const r0=2*Math.floor(rng()*((rows+1)/2)),c0=2*Math.floor(rng()*((cols-3)/2));
+  if(!place(r0,c0,'h',5,[null,null,null]))return null;
+  for(let it=0;it<2500&&eqs.length<d.eqs;it++){
+    const nums=[...cells.values()].filter(x=>x.type==='num'&&!(x.h&&x.v));
+    if(!nums.length)break;
+    const x=nums[Math.floor(rng()*nums.length)];
+    const len=rng()<d.long?7:5,dir=x.h?'v':'h',idx=Math.floor(rng()*((len+1)/2));
+    const r=x.r-(dir==='v'?2*idx:0),c=x.c-(dir==='h'?2*idx:0);
+    const fixed=probe(r,c,dir,len);
+    if(fixed)place(r,c,dir,len,fixed);
+  }
+  if(eqs.length<d.min)return null;
+  let r1=99,c1=99,r2=0,c2=0;
+  for(const x of cells.values()){r1=Math.min(r1,x.r);c1=Math.min(c1,x.c);r2=Math.max(r2,x.r);c2=Math.max(c2,x.c)}
+  const list=[...cells.values()];
+  for(const x of list){x.r-=r1;x.c-=c1;x.key=x.r*100+x.c;x.blank=false}
+  list.sort((a,b)=>a.key-b.key);
+  const nums=list.filter(x=>x.type==='num');
+  const order=nums.slice();
+  for(let i=order.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[order[i],order[j]]=[order[j],order[i]]}
+  let target=Math.round(nums.length*d.blank),n=0;
+  for(const x of order){
+    if(n>=target)break;
+    const mine=eqs.filter(e=>e.cells.includes(x));
+    if(mine.every(e=>e.cells.filter(y=>y.blank).length<d.perEq+(e.cells.length>3?1:0))){x.blank=true;n++}
+  }
+  if(n<2)return null;
+  return{cols:c2-c1+1,rows:r2-r1+1,cells:list,eqs:eqs.map(e=>({keys:e.cells.map(x=>x.key),ops:e.ops}))};
+}
+function generate(seed,diff){
+  const d=DIFFS[diff];
+  let best=null;
+  for(let t=0,n=0;t<300&&n<14;t++){const p=tryGen(mulberry32(seed+t*7919),d);if(!p)continue;n++;if(!best||p.eqs.length>best.eqs.length)best=p;if(p.eqs.length>=d.eqs)break}
+  return best;
+}
+/*GEN-END*/
+
+(()=>{
+const $=s=>document.querySelector(s);
+const SHOW={'+':'+','-':'−','*':'×','/':'÷','=':'='};
+const store={
+  get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},
+  del(k){try{localStorage.removeItem(k)}catch(e){}}
+};
+let settings=Object.assign({feedback:true,theme:'dark',diff:'medium'},store.get('nc-settings2',{}));
+let stats=store.get('nc-stats',{});
+let G=null,els=new Map(),timer=null,toastT=null;
+
+function applyTheme(){
+  let t=settings.theme;
+  if(t==='auto')t=(window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';
+  document.documentElement.dataset.theme=t;
+}
+function fmt(s){s=Math.floor(s);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+function todayNum(){const d=new Date();return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate()}
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),1900)}
+
+function start(diff,seed,daily,saved){
+  const p=generate(seed,diff);
+  p.byKey=new Map(p.cells.map(x=>[x.key,x]));
+  p.blanks=p.cells.filter(x=>x.blank).map(x=>x.key);
+  p.tray=p.blanks.map(k=>p.byKey.get(k).val).sort((a,b)=>a-b);
+  G={diff,seed,daily:!!daily,p,vals:new Map(),locked:new Set(),undo:[],wrong:new Map(),checks:0,sel:null,selTile:null,elapsed:0,mistakes:0,hints:0,done:false};
+  if(saved){
+    for(const [k,v] of saved.vals)if(p.byKey.has(k))G.vals.set(k,v);
+    G.locked=new Set(saved.locked);G.elapsed=saved.elapsed||0;G.mistakes=saved.mistakes||0;G.hints=saved.hints||0;
+  }
+  if(!daily){settings.diff=diff;store.set('nc-settings2',settings)}
+  build();
+  G.sel=firstEmpty();
+  update();
+  clearInterval(timer);
+  timer=setInterval(()=>{if(G&&!G.done&&!document.hidden&&!$('#overlay').classList.contains('on')){G.elapsed++;$('#time').textContent=fmt(G.elapsed);if(G.elapsed%5===0)save()}},1000);
+}
+function save(){
+  if(!G||G.done)return;
+  store.set('nc-game2',{diff:G.diff,seed:G.seed,daily:G.daily,vals:[...G.vals],locked:[...G.locked],elapsed:G.elapsed,mistakes:G.mistakes,hints:G.hints});
+}
+function layout(){
+  const p=G.p,app=$('#app');
+  const W=app.clientWidth-12,H=app.clientHeight-12;
+  const n=p.tray.length,tc=n>32?9:n>21?8:7,tr=Math.ceil(n/tc);
+  const chrome=$('header').offsetHeight+$('.tools').offsetHeight+6+6+14+8;
+  let ts=Math.min(50,Math.floor((W-12-(tc-1)*6)/tc));
+  const fit=t=>Math.floor(Math.min((W-6)/p.cols,(H-chrome-tr*t-(tr-1)*6)/p.rows));
+  let cs=fit(ts);
+  while(cs<30&&ts>30){ts-=2;cs=fit(ts)}
+  cs=Math.max(14,Math.min(54,cs));
+  const b=$('#board'),t=$('#tray');
+  b.style.setProperty('--cs',cs+'px');
+  b.style.gridTemplateColumns='repeat('+p.cols+',var(--cs))';
+  t.style.setProperty('--ts',ts+'px');
+  t.style.gridTemplateColumns='repeat('+tc+',var(--ts))';
+}
+function build(){
+  const b=$('#board'),p=G.p;
+  $('#menuBtn').textContent=(G.daily?'Daily':DIFFS[G.diff].label)+' ▾';
+  b.innerHTML='';els=new Map();
+  for(const x of p.cells){
+    const e=document.createElement('div');
+    e.className='cell '+(x.type==='num'?'num':'op')+(x.blank?' blank':'');
+    e.style.gridRow=x.r+1;e.style.gridColumn=x.c+1;
+    if(x.type==='op')e.textContent=SHOW[x.ch];
+    else{e.dataset.k=x.key;if(!x.blank)e.textContent=x.val}
+    b.appendChild(e);els.set(x.key,e);
+  }
+  layout();
+}
+function val(k){const x=G.p.byKey.get(k);return x.blank?G.vals.get(k):x.val}
+function evalEq(e){
+  const v=e.keys.map(val);
+  if(v.some(x=>x==null))return null;
+  return evalChain(v,e.ops);
+}
+function trayCounts(){
+  const m=new Map();
+  for(const v of G.p.tray)m.set(v,(m.get(v)||0)+1);
+  for(const v of G.vals.values())m.set(v,(m.get(v)||0)-1);
+  return m;
+}
+function firstEmpty(){for(const k of G.p.blanks)if(!G.vals.has(k))return k;return null}
+function nextEmpty(k){
+  for(const e of G.p.eqs)if(e.keys.includes(k))for(const q of e.keys)if(G.p.byKey.get(q).blank&&!G.vals.has(q))return q;
+  const i=G.p.blanks.indexOf(k);
+  for(let j=1;j<=G.p.blanks.length;j++){const q=G.p.blanks[(i+j)%G.p.blanks.length];if(!G.vals.has(q))return q}
+  return null;
+}
+function update(){
+  const p=G.p,full=p.blanks.every(k=>G.vals.has(k)),show=settings.feedback||full||G.done;
+  const good=new Set(),bad=new Set();
+  if(show)for(const e of p.eqs){const r=evalEq(e);if(r===true)e.keys.forEach(k=>good.add(k));else if(r===false)e.keys.forEach(k=>bad.add(k))}
+  for(const x of p.cells){
+    if(x.type!=='num')continue;
+    const e=els.get(x.key),v=val(x.key);
+    if(x.blank){
+      e.textContent=v==null?'':v;
+      e.classList.toggle('locked',G.locked.has(x.key));
+      e.classList.toggle('sel',G.sel===x.key);
+      e.classList.toggle('target',G.selTile!=null&&v==null);
+      e.classList.toggle('bad',(bad.has(x.key)||(v!=null&&G.wrong.get(x.key)===v))&&!G.locked.has(x.key));
+      e.classList.toggle('good',good.has(x.key)&&!bad.has(x.key)&&!(v!=null&&G.wrong.get(x.key)===v));
+    }
+    e.classList.toggle('long',v!=null&&String(v).length>2);
+  }
+  const tray=$('#tray'),used=new Map();tray.innerHTML='';
+  for(const v of G.vals.values())used.set(v,(used.get(v)||0)+1);
+  p.tray.forEach((v,i)=>{
+    const t=document.createElement('button');
+    let u=false;if(used.get(v)>0){used.set(v,used.get(v)-1);u=true}
+    t.className='tile'+(u?' used':'')+(G.selTile===i&&!u?' sel':'')+(String(v).length>2?' long':'');
+    t.dataset.i=i;t.textContent=v;tray.appendChild(t);
+  });
+  $('#time').textContent=fmt(G.elapsed);
+  $('#mist').textContent=G.mistakes;
+  $('#progress').textContent=G.vals.size+'/'+p.blanks.length;
+  $('#undoBtn').disabled=!G.undo.length||G.done;
+  $('#eraseBtn').disabled=G.done||!(G.sel!=null&&G.vals.has(G.sel)&&!G.locked.has(G.sel));
+  $('#hintBtn').disabled=G.done;
+  $('#checkBtn').disabled=G.done||!G.p.blanks.some(k=>G.vals.has(k)&&!G.locked.has(k));
+}
+function pushUndo(){G.undo.push([...G.vals])}
+function place(k,v){
+  if(G.done||G.locked.has(k))return;
+  if((trayCounts().get(v)||0)<=0)return;
+  pushUndo();
+  G.vals.set(k,v);G.selTile=null;
+  if(G.p.eqs.some(e=>e.keys.includes(k)&&evalEq(e)===false)){
+    G.mistakes++;
+    if(settings.feedback&&navigator.vibrate)try{navigator.vibrate(40)}catch(e){}
+  }
+  G.sel=nextEmpty(k);
+  after();
+}
+function after(){
+  const p=G.p,full=p.blanks.every(k=>G.vals.has(k));
+  if(full){
+    if(p.eqs.every(e=>evalEq(e)===true)){win();return}
+    toast('Not every equation balances yet');
+  }
+  save();update();
+}
+function win(){
+  G.done=true;G.sel=null;G.selTile=null;clearInterval(timer);store.del('nc-game2');
+  const key=G.daily?'daily':G.diff,s=stats[key]||(stats[key]={n:0,best:null,sum:0,clean:0});
+  s.n++;s.sum+=G.elapsed;if(s.best==null||G.elapsed<s.best)s.best=G.elapsed;
+  if(!G.mistakes&&!G.hints&&!G.checks)s.clean=(s.clean||0)+1;
+  if(G.daily){
+    const t=todayNum(),y=new Date();y.setDate(y.getDate()-1);
+    const yn=y.getFullYear()*10000+(y.getMonth()+1)*100+y.getDate();
+    if(s.last!==t){s.streak=(s.last===yn?(s.streak||0):0)+1;s.last=t}
+  }
+  store.set('nc-stats',stats);
+  update();
+  setTimeout(()=>sheetWin(s),350);
+}
+function hint(){
+  if(G.done)return;
+  const sol=q=>G.p.byKey.get(q).val;
+  let k=(G.sel!=null&&!G.locked.has(G.sel)&&G.vals.get(G.sel)!==sol(G.sel))?G.sel:null;
+  if(k==null)k=G.p.blanks.find(q=>!G.vals.has(q));
+  if(k==null)k=G.p.blanks.find(q=>!G.locked.has(q)&&G.vals.get(q)!==sol(q));
+  if(k==null){toast('Nothing left to hint');return}
+  const v=sol(k);
+  pushUndo();
+  G.vals.delete(k);
+  if((trayCounts().get(v)||0)<=0){
+    const q=G.p.blanks.find(q=>!G.locked.has(q)&&G.vals.get(q)===v&&sol(q)!==v);
+    if(q!=null)G.vals.delete(q);
+  }
+  G.vals.set(k,v);G.locked.add(k);G.hints++;G.selTile=null;
+  G.sel=nextEmpty(k);
+  after();
+}
+function open(html){$('#sheet').innerHTML=html;$('#overlay').classList.add('on')}
+function close(){$('#overlay').classList.remove('on')}
+function sheetMenu(){
+  const dd=stats.daily||{},doneToday=dd.last===todayNum();
+  let h='<h2>New puzzle</h2><p>Fill each dark square with a number from the tray so every row and column equation is true.</p><div class="opts">';
+  for(const k in DIFFS)h+='<button class="opt" data-new="'+k+'">'+DIFFS[k].label+'<small>'+DIFFS[k].note+'</small></button>';
+  h+='<button class="opt wide primary" data-daily="1">Daily challenge<small>'+(doneToday?'Done today. Streak: '+(dd.streak||1)+' day'+((dd.streak||1)>1?'s':''):'One hard puzzle per day')+'</small></button></div>';
+  h+='<div class="sec">Settings</div>';
+  h+='<div class="row"><span>Instant feedback<br><small>Off is harder: errors show only when the grid is full</small></span><button data-set="feedback">'+(settings.feedback?'On':'Off')+'</button></div>';
+  h+='<div class="row"><span>Theme</span><button data-set="theme">'+settings.theme[0].toUpperCase()+settings.theme.slice(1)+'</button></div>';
+  h+='<div class="sec">Your record</div><table><tr><th>Level</th><th>Solved</th><th>Best</th><th>Average</th><th>Clean</th></tr>';
+  for(const k of ['easy','medium','hard','expert','daily']){
+    const s=stats[k]||{n:0};
+    h+='<tr><td>'+(k==='daily'?'Daily':DIFFS[k].label)+'</td><td>'+s.n+'</td><td>'+(s.n?fmt(s.best):'-')+'</td><td>'+(s.n?fmt(s.sum/s.n):'-')+'</td><td>'+(s.clean||0)+'</td></tr>';
+  }
+  h+='</table><div class="opts" style="margin-top:12px"><button class="opt wide" data-close="1" style="text-align:center">Back to puzzle</button></div>';
+  open(h);
+}
+function sheetWin(s){
+  const clean=!G.mistakes&&!G.hints&&!G.checks;
+  let h='<h2>'+(clean?'Flawless solve':'Solved')+'</h2><p>'+(G.daily?'Daily challenge':DIFFS[G.diff].label+' puzzle')+' complete.'+(s.best===G.elapsed&&s.n>1?' New best time.':'')+'</p>';
+  h+='<div class="big"><div><b>'+fmt(G.elapsed)+'</b>Time</div><div><b>'+G.mistakes+'</b>Errors</div><div><b>'+G.hints+'</b>Hints</div></div><div class="opts">';
+  h+='<button class="opt wide primary" data-new="'+G.diff+'">Next '+DIFFS[G.diff].label+' puzzle</button>';
+  const order=['easy','medium','hard','expert'],i=order.indexOf(G.diff);
+  if(i<3)h+='<button class="opt" data-new="'+order[i+1]+'">Step up<small>'+DIFFS[order[i+1]].label+'</small></button>';
+  h+='<button class="opt'+(i<3?'':' wide')+'" data-menu="1">More<small>Levels and stats</small></button></div>';
+  open(h);
+}
+
+$('#board').addEventListener('click',ev=>{
+  const t=ev.target.closest('[data-k]');if(!t||G.done)return;
+  const k=+t.dataset.k,x=G.p.byKey.get(k);
+  if(!x.blank||G.locked.has(k)){G.sel=null;update();return}
+  if(G.selTile!=null){place(k,G.p.tray[G.selTile]);return}
+  if(G.sel===k&&G.vals.has(k)){pushUndo();G.vals.delete(k);save()}
+  else G.sel=k;
+  update();
+});
+$('#tray').addEventListener('click',ev=>{
+  const t=ev.target.closest('[data-i]');if(!t||G.done||t.classList.contains('used'))return;
+  const i=+t.dataset.i;
+  if(G.sel!=null&&!G.locked.has(G.sel)){place(G.sel,G.p.tray[i]);return}
+  G.selTile=G.selTile===i?null:i;update();
+});
+$('#undoBtn').onclick=()=>{
+  if(!G.undo.length||G.done)return;
+  let prev,ch=null;
+  while(G.undo.length&&ch==null){
+    prev=new Map(G.undo.pop());const cnt=new Map();
+    for(const k of G.locked)prev.set(k,G.p.byKey.get(k).val);
+    for(const v of G.p.tray)cnt.set(v,(cnt.get(v)||0)+1);
+    for(const v of prev.values())cnt.set(v,(cnt.get(v)||0)-1);
+    for(const [k,v] of [...prev])if(cnt.get(v)<0&&!G.locked.has(k)){prev.delete(k);cnt.set(v,cnt.get(v)+1)}
+    for(const k of G.p.blanks)if(prev.get(k)!==G.vals.get(k)&&!G.locked.has(k)){ch=k;break}
+  }
+  G.vals=prev;G.selTile=null;if(ch!=null)G.sel=ch;
+  save();update();
+};
+$('#checkBtn').onclick=()=>{
+  if(G.done)return;
+  G.wrong=new Map();G.checks++;
+  for(const k of G.p.blanks)if(G.vals.has(k)&&!G.locked.has(k)&&G.vals.get(k)!==G.p.byKey.get(k).val)G.wrong.set(k,G.vals.get(k));
+  const n=G.wrong.size;
+  toast(n?n+' incorrect number'+(n>1?'s':'')+' marked in red':'All numbers placed so far are correct');
+  update();
+};
+$('#eraseBtn').onclick=()=>{if(G.done||G.sel==null||!G.vals.has(G.sel)||G.locked.has(G.sel))return;pushUndo();G.vals.delete(G.sel);save();update()};
+$('#hintBtn').onclick=hint;
+$('#newBtn').onclick=sheetMenu;
+$('#menuBtn').onclick=sheetMenu;
+$('#overlay').addEventListener('click',ev=>{
+  if(ev.target.id==='overlay'){if(!G.done)close();return}
+  const b=ev.target.closest('button');if(!b)return;
+  if(b.dataset.new){close();start(b.dataset.new,Math.floor(Math.random()*1e9),false)}
+  else if(b.dataset.daily){close();start('hard',todayNum(),true)}
+  else if(b.dataset.menu)sheetMenu();
+  else if(b.dataset.close){if(G.done)start(G.diff,Math.floor(Math.random()*1e9),false);close()}
+  else if(b.dataset.set==='feedback'){settings.feedback=!settings.feedback;store.set('nc-settings2',settings);sheetMenu();update()}
+  else if(b.dataset.set==='theme'){settings.theme={dark:'light',light:'auto',auto:'dark'}[settings.theme];store.set('nc-settings2',settings);applyTheme();sheetMenu()}
+});
+window.addEventListener('resize',()=>{if(G)layout()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)save()});
+
+if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+applyTheme();
+const sv=store.get('nc-game2',null);
+if(sv&&DIFFS[sv.diff]&&!(sv.daily&&sv.seed!==todayNum()))start(sv.diff,sv.seed,sv.daily,sv);
+else start(DIFFS[settings.diff]?settings.diff:'medium',Math.floor(Math.random()*1e9),false);
+})();
+</script>
+</body>
+</html>
